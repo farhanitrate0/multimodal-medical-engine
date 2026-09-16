@@ -1,0 +1,23 @@
+# Environments
+venv/
+env/
+
+# Python Cache & Compiled Files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build & Package Metadata
+*.egg-info/
+multimodal_medical_engine.egg-info/
+build/
+dist/
+
+# Large Model Weights
+*.pth
+fine_tuned_medical_resnet.pth
+
+# OS Generated Files
+.DS_Store
+Thumbs.db

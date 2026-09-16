@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Multimodal Telemetry & Medical Engine</title>
+    <style>
+        body { 
+            background: #0f172a; 
+            color: white; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            text-align: center; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        h2 { color: #f8fafc; margin-bottom: 10px; }
+        .controls { margin: 20px 0; }
+        button { 
+            background: #334155; 
+            color: white; 
+            border: 2px solid #475569; 
+            padding: 10px 24px; 
+            margin: 0 8px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold; 
+            transition: all 0.2s ease;
+        }
+        button.active { 
+            background: #3b82f6; 
+            border-color: #60a5fa; 
+        }
+        button:hover { background: #2563eb; }
+        .viewport { 
+            display: inline-block; 
+            padding: 10px; 
+            background: #1e293b; 
+            border-radius: 12px; 
+            border: 1px solid #334155; 
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        img { 
+            border-radius: 8px; 
+            display: block; 
+            max-width: 100%; 
+            height: auto; 
+        }
+        #stats { 
+            margin-top: 15px; 
+            font-size: 16px; 
+            font-weight: 500; 
+            color: #38bdf8; 
+        }
+    </style>
+</head>
+<body>
+    <h2>Multimodal Telemetry & Medical Engine</h2>
+    
+    <div class="controls">
+        <button id="btn-medical" class="active" onclick="setMode('medical')">1. Radiological Diagnosis (X-Ray)</button>
+        <button id="btn-spatial" onclick="setMode('spatial')">2. Spatial Telemetry (Face & Hands)</button>
+    </div>
+
+    <div class="viewport">
+        <video id="webcam" autoplay hidden></video>
+        <canvas id="canvas" hidden></canvas>
+        <img id="overlay" alt="Awaiting Stream..." width="400" height="400" />
+    </div>
+    
+    <div id="stats">Initializing Stream...</div>
+
+    <script>
+        let currentMode = 'medical';
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('btn-medical').classList.toggle('active', mode === 'medical');
+            document.getElementById('btn-spatial').classList.toggle('active', mode === 'spatial');
+        }
+
+        const ws = new WebSocket(`ws://localhost:8000/ws/stream`);
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        ws.onopen = () => {
+            navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+                video.srcObject = stream;
+                setInterval(() => {
+                    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        
+                        const payload = {
+                            image: canvas.toDataURL('image/jpeg', 0.5),
+                            mode: currentMode
+                        };
+                        ws.send(JSON.stringify(payload));
+                    }
+                }, 100); // 10 FPS streaming loop
+            }).catch(err => {
+                document.getElementById('stats').innerText = "Webcam Error: Check permissions.";
+            });
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            document.getElementById('overlay').src = data.overlay;
+            document.getElementById('stats').innerText = `${data.status}`;
+        };
+
+        ws.onclose = () => {
+            document.getElementById('stats').innerText = "Connection Lost. Restart Server.";
+        };
+    </script>
+</body>
+</html>
